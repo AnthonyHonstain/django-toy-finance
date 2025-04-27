@@ -64,6 +64,7 @@ class Account:
         return cash_back_active_ms < timestamp
 
     def _debug_ledger(self):
+        # TODO - this is ugly, but I haven't setup structured logging yet.
         print()
         print(f"Dump ledger for {self.account_name}")
         for ledger in self.ledger_list:
@@ -76,11 +77,10 @@ class BankImpl(BankInterface):
         self.account_map: dict[str, Account] = {}
 
     def add(self, timestamp: int, user_account: str, amount: int) -> int:
-        if user_account not in self.account_map:
-            self.account_map[user_account] = Account(user_account)
-        account = self.account_map[user_account]
-        new_ledger = Ledger(timestamp, user_account, amount, LedgerType.TRANSFER)
-        account.add(new_ledger)
+        if not (account := self.account_map.get(user_account)):
+            account = self.account_map.setdefault(user_account, Account(user_account))
+
+        account.add(Ledger(timestamp, user_account, amount, LedgerType.TRANSFER))
         # account._debug_ledger()
         return account.calculate_balance(timestamp)
 
@@ -91,13 +91,11 @@ class BankImpl(BankInterface):
         user_account_destination: str,
         amount: int,
     ) -> int | None:
-        if user_account_source not in self.account_map:
+        if not (account_source := self.account_map.get(user_account_source)):
             return None
-        if user_account_destination not in self.account_map:
+        if not (account_dest := self.account_map.get(user_account_destination)):
             return None
 
-        account_source = self.account_map[user_account_source]
-        account_dest = self.account_map[user_account_destination]
         source_balance = account_source.calculate_balance(timestamp)
         if source_balance < amount:
             return None
@@ -105,10 +103,14 @@ class BankImpl(BankInterface):
         account_source.add(
             Ledger(timestamp, user_account_source, -amount, LedgerType.TRANSFER)
         )
-        new_ledger_cashback = Ledger(
-            timestamp, user_account_source, floor(amount * 0.02), LedgerType.CASH_BACK
+        account_source.add(
+            Ledger(
+                timestamp,
+                user_account_source,
+                floor(amount * 0.02),
+                LedgerType.CASH_BACK,
+            )
         )
-        account_source.add(new_ledger_cashback)
         account_dest.add(
             Ledger(timestamp, user_account_destination, amount, LedgerType.TRANSFER)
         )
@@ -128,9 +130,9 @@ class BankImpl(BankInterface):
     def withdraw(self, timestamp: int, user_account: str, amount: int) -> int | None:
         if amount <= 0:
             raise ValueError()
-        if user_account not in self.account_map:
+        if not (account := self.account_map.get(user_account)):
             return None
-        account = self.account_map[user_account]
+
         source_balance = account.calculate_balance(timestamp)
         if source_balance < amount:
             return None
@@ -146,10 +148,11 @@ class BankImpl(BankInterface):
     def check_payment_status(
         self, timestamp: int, user_account: str, payment_timestamp: int
     ) -> str | None:
-        if user_account not in self.account_map:
+        if not (account := self.account_map.get(user_account)):
             return None
-        account = self.account_map[user_account]
+
         ledger = account.get_payment_by_timestamp(payment_timestamp)
+
         if not ledger:
             return None
         elif account.cashback_is_active(timestamp, ledger):
