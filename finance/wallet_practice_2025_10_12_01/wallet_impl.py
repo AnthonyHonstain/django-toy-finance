@@ -5,7 +5,6 @@ from typing import Literal
 
 from finance.wallet_practice_2025_10_12_01.wallet_interface import WalletInterface
 
-
 LedgerType = Literal["CREDIT", "PURCHASE", "TRANSFER"]
 
 

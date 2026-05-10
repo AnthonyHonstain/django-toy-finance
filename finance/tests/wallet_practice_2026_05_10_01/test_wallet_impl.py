@@ -1,6 +1,5 @@
 from finance.wallet_practice_2026_05_10_01.wallet_impl import WalletImpl
 
-
 USER_1 = "user1"
 USER_2 = "user2"
 
