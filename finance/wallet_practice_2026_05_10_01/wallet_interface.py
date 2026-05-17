@@ -73,11 +73,56 @@ class WalletInterface(ABC):
         """
 
     @abstractmethod
-    def balance(self, timestamp: int, user: str) -> int:
+    def balance(self, timestamp: int, user: str) -> int | None:
         """Return the user's current available balance.
 
         Scenario:
         * `balance(1, "missing")` returns 0.
+        """
+
+    @abstractmethod
+    def balance_at(self, timestamp: int, user: str, at_timestamp: int) -> int | None:
+        """Return the user's balance as of `at_timestamp`.
+
+        This is the audit/customer support version of balance: it answers what
+        the wallet would have shown at a specific point in account history.
+        Return None if the user did not exist yet.
+
+        Scenario:
+        * `credit(1, "u1", 500)` returns 500.
+        * `purchase(3, "u1", 200)` returns 300.
+        * `balance_at(10, "u1", 2)` returns 500.
+        * `balance_at(10, "u1", 3)` returns 300.
+        * `balance_at(10, "missing", 3)` returns None.
+
+        UPDATE from Anthony - the timestamp was just robotically put in there, but
+        unlike the other operations the mutate the wallet, it makes less sense
+        to have some explicit timestamp argument for a read only operation. Its even
+        more confusing since it sits adjacent to balance(timestamp, ..) where timestamp
+        had a clear behavior. The API For balance and balance_at ended up in a silly place.
+        I guess thats the problem with interview problems, you make try to make allowances
+        for the time pressure, and in this case you see were me using an agent to
+        setup and proxy the practice resulted in something confusing.
+        * Not going to try and unwind all these here since I think there was value in how
+          things looked when I first tackled it.
+        """
+
+    @abstractmethod
+    def statement(
+        self, timestamp: int, user: str, start_timestamp: int, end_timestamp: int
+    ) -> list[str]:
+        """Return formatted ledger entries for one user in an inclusive range.
+
+        Statement rows should be sorted by timestamp and should not include
+        other users' unrelated activity. The exact formatting is intentionally
+        simple for practice and can evolve during implementation.
+
+        Scenario:
+        * `credit(1, "u1", 500)`
+        * `purchase(2, "u1", 200)`
+        * `credit(3, "u2", 999)`
+        * `statement(10, "u1", 1, 2)` returns entries for u1's credit and
+          purchase only.
         """
 
     @abstractmethod

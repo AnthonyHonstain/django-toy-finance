@@ -1,3 +1,5 @@
+import pytest
+
 from finance.wallet_practice_2026_05_10_01.wallet_impl import WalletImpl
 
 USER_1 = "user1"
@@ -12,7 +14,7 @@ class TestWalletPractice:
 
         assert wallet.balance(0, USER_1) == 100
         assert wallet.balance(1, USER_1) == 100
-        assert wallet.balance(2, USER_1) == 0
+        assert wallet.balance(2, USER_1) is None
 
     def test_purchase_success_and_failure(self):
         wallet = WalletImpl()
@@ -24,7 +26,7 @@ class TestWalletPractice:
     def test_purchase_with_unknown_user(self):
         wallet = WalletImpl()
 
-        assert wallet.purchase(1, USER_2, 100) == None
+        assert wallet.purchase(1, USER_2, 100) is None
 
     def test_purchase_multiple_credit_and_balance(self):
         wallet = WalletImpl()
@@ -60,22 +62,108 @@ class TestWalletPractice:
 
     def test_top_customers_user_sort(self):
         wallet = WalletImpl()
-        wallet.credit(1, "a", 100)
-        wallet.credit(1, "b", 100)
-        wallet.credit(1, "c", 100)
-        wallet.credit(1, "d", 100)  # gets trimmed
-        wallet.credit(1, "e", 90)  # gets trimmed
+        # Update for phase 2
+        wallet.credit(1, "a", 1000)
+        wallet.credit(1, "b", 1000)
+        wallet.credit(1, "c", 1000)
+        wallet.credit(1, "d", 1000)
+        wallet.credit(1, "e", 1000)
+
+        wallet.purchase(2, "a", 100)
+        wallet.purchase(2, "b", 100)
+        wallet.purchase(2, "c", 100)
+        wallet.purchase(2, "d", 100)  # gets trimmed
+        wallet.purchase(2, "e", 90)  # gets trimmed
 
         assert wallet.top_customers(0, 3) == ["a", "b", "c"]
 
     def test_top_customers_balance_sort(self):
         wallet = WalletImpl()
-        wallet.credit(1, "a", 100)
-        wallet.credit(1, "b", 101)
-        wallet.credit(1, "c", 102)
-        wallet.credit(1, "d", 90)  # gets trimmed
+        # Update for phase 2
+        wallet.credit(1, "a", 1000)
+        wallet.credit(1, "b", 1000)
+        wallet.credit(1, "c", 1000)
+        wallet.credit(1, "d", 1000)
+        wallet.credit(1, "e", 1000)
+
+        wallet.purchase(2, "a", 100)
+        wallet.purchase(2, "b", 101)
+        wallet.purchase(2, "c", 102)
+        wallet.purchase(2, "d", 90)  # gets trimmed
 
         # This assertion doesn't work ['c', 'b', 'a'] != ['c', 'b', 'a']
         # I am trying to remember the pytest assert rules since I haven't
         # been using pytest for the last year.
         assert wallet.top_customers(0, 3) == ["c", "b", "a"]
+
+    def test_top_customers_balance_sort_reverse(self):
+        wallet = WalletImpl()
+        # Update for phase 2
+        wallet.credit(1, "a", 1000)
+        wallet.credit(1, "b", 1000)
+        wallet.credit(1, "c", 1000)
+        wallet.credit(1, "d", 1000)
+        wallet.credit(1, "e", 1000)
+
+        wallet.purchase(2, "d", 90)  # gets trimmed
+        wallet.purchase(2, "c", 102)
+        wallet.purchase(2, "b", 101)
+        wallet.purchase(2, "a", 100)
+
+        # This assertion doesn't work ['c', 'b', 'a'] != ['c', 'b', 'a']
+        # I am trying to remember the pytest assert rules since I haven't
+        # been using pytest for the last year.
+        assert wallet.top_customers(0, 3) == ["c", "b", "a"]
+
+    def test_phase_2_balance_at_before_user_exists(self):
+        wallet = WalletImpl()
+
+        assert wallet.balance_at(10, USER_1, 1) is None
+
+    def test_phase_2_balance_at_between_account_events(self):
+        wallet = WalletImpl()
+        wallet.credit(1, USER_1, 500)
+        wallet.purchase(3, USER_1, 200)
+        wallet.transfer(5, USER_1, USER_2, 100)
+
+        assert wallet.balance_at(10, USER_1, 1) == 500
+        assert wallet.balance_at(10, USER_1, 3) == 300
+        assert wallet.balance_at(10, USER_1, 4) == 300
+        assert wallet.balance_at(10, USER_1, 5) == 200
+
+    def test_phase_2_statement_filters_to_one_user_and_time_range(self):
+        wallet = WalletImpl()
+        wallet.credit(1, USER_1, 500)
+        wallet.purchase(2, USER_1, 200)
+        wallet.credit(3, USER_2, 999)
+        wallet.transfer(4, USER_1, USER_2, 100)
+
+        assert wallet.statement(10, USER_1, 1, 3) == [
+            "1: CREDIT 500 balance=500",
+            "2: PURCHASE 200 balance=300",
+        ]
+
+    def test_phase_2_statement_includes_transfer_entries_for_each_user(self):
+        wallet = WalletImpl()
+        wallet.credit(1, USER_1, 500)
+        wallet.transfer(2, USER_1, USER_2, 125)
+
+        assert wallet.statement(10, USER_1, 1, 2) == [
+            "1: CREDIT 500 balance=500",
+            "2: TRANSFER_OUT 125 to user2 balance=375",
+        ]
+        assert wallet.statement(10, USER_2, 1, 2) == [
+            "2: TRANSFER_IN 125 from user1 balance=125",
+        ]
+
+    @pytest.mark.skip(reason="Phase 2 placeholder: enforce purchase activity ranking")
+    def test_phase_2_top_customers_counts_purchases_not_credits_or_transfers(self):
+        wallet = WalletImpl()
+        wallet.credit(1, "alice", 1000)
+        wallet.credit(2, "bob", 10_000)
+        wallet.purchase(3, "alice", 400)
+        wallet.purchase(4, "alice", 200)
+        wallet.purchase(5, "bob", 100)
+        wallet.transfer(6, "bob", "alice", 500)
+
+        assert wallet.top_customers(10, 2) == ["alice(600)", "bob(100)"]
