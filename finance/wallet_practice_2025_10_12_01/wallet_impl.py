@@ -19,7 +19,7 @@ class LedgerEntry:
 
 
 class UserWallet:
-    def __init__(self, user: str):
+    def __init__(self, user: str) -> None:
         self.user = user
         self.ledger: list[LedgerEntry] = []
 
@@ -50,7 +50,7 @@ class UserWallet:
 
 class WalletImpl(WalletInterface):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.user_wallets: dict[str, UserWallet] = {}
 

@@ -7,6 +7,18 @@ class WalletInterface(ABC):
     Timestamps are included to mimic interview-style APIs where operations are
     ordered externally. The starter scenarios do not require historical balance
     lookups; treating operations as happening in call order is enough for phase 1.
+    One ambiguity in the prompt is whether a timestamp means "the balance as of
+    this point in time" or "the ledger entries after this checkpoint." For this
+    practice run, the implementation follows the checkpoint interpretation so a
+    future compacted balance could be combined with ledger entries after the
+    checkpoint timestamp.
+
+    Practice note: if revisiting this exercise, a "balance as of timestamp"
+    method makes more sense when framed as a customer support or audit scenario,
+    such as explaining why a purchase was declined at a specific point in the
+    account history. Plain integer timestamps are contrived, but they keep the
+    interview problem small; real time handling or UUID-plus-time ordering would
+    add a lot of incidental complexity.
 
     Reference scenarios:
 

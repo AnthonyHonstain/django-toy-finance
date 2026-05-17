@@ -27,7 +27,7 @@ class Account:
 
     CASH_BACK_HOLDING_PERIOD_MS = 86400000
 
-    def __init__(self, account_name: str):
+    def __init__(self, account_name: str) -> None:
         self.account_name = account_name
         self.ledger_list: list[Ledger] = []
 
@@ -63,7 +63,7 @@ class Account:
         cash_back_active_ms = ledger.timestamp + self.CASH_BACK_HOLDING_PERIOD_MS
         return cash_back_active_ms < timestamp
 
-    def _debug_ledger(self):
+    def _debug_ledger(self) -> None:
         # TODO - this is ugly, but I haven't setup structured logging yet.
         print()
         print(f"Dump ledger for {self.account_name}")
@@ -73,7 +73,7 @@ class Account:
 
 
 class BankImpl(BankInterface):
-    def __init__(self):
+    def __init__(self) -> None:
         self.account_map: dict[str, Account] = {}
 
     def add(self, timestamp: int, user_account: str, amount: int) -> int:
