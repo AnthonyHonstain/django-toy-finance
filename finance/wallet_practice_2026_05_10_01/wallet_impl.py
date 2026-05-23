@@ -78,6 +78,31 @@ class WalletImpl(WalletInterface):
       statement probably needs an opening balance before start_timestamp.
     * top_customers is conceptually closer by counting purchases only, but still
       needs the interface format user(amount) and an unskipped contract test.
+
+    2026-05-23 finish phase 2
+    1000-1016 Cleaned up the rest phase 2, had to fix the discrepancy in top_purchase
+    1016-1030
+    * I didn't like the implementation of statement, the way we positionally look up the
+      pair of transfers feels really error prone.
+    * I also didn't like the way we traverse the entire ledger every time.
+    * Idea here - do a cleanup / re-organization
+    ** break the need for the transfer_lookup by expanding ledger
+    ** break out each user to have their own ledger and aggregation.
+    * You know what, its probably more clear to just rewrite it at this point, that
+      way my initial mistakes are preserved for posterity.
+
+    -- Code I abandoned
+    class PersonalAccount:
+        def __init__(self) -> None:
+            self.ledgers: List[Ledger] = list()
+            self.current_balance: int = 0
+
+        def add_ledger(self, ledger: Ledger) -> None:
+            self.ledgers.append(ledger)
+            self.current_balance += ledger.amount
+
+    self.personal_accounts: Dict[str, PersonalAccount] = dict()
+    self.personal_accounts[ledger.user].add_ledger(ledger)
     """
 
     def __init__(self) -> None:
@@ -238,11 +263,10 @@ class WalletImpl(WalletInterface):
         customer_balances: dict[str, int] = defaultdict(int)
         for ledger in self.global_ledger:
             if ledger.operation_type == OperationType.PURCHASE:
-                customer_balances[ledger.user] += ledger.amount
+                customer_balances[ledger.user] += abs(ledger.amount)
 
         customer_balance_values = list(customer_balances.items())
-        customer_balance_values.sort()
-        sorted_balances = sorted(customer_balance_values, key=itemgetter(1))
+        sorted_balances = sorted(customer_balance_values, key=lambda x: (-x[1], x[0]))
 
         # Struggling to remember the options to sort in Python
         # list(customer_balance_values).sort()
@@ -273,5 +297,5 @@ class WalletImpl(WalletInterface):
         # print(foo[:3])
         result = []
         for customer, amount in sorted_balances[:k]:
-            result.append(customer)
+            result.append(f"{customer}({amount})")
         return result

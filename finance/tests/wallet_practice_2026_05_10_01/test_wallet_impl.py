@@ -75,7 +75,7 @@ class TestWalletPractice:
         wallet.purchase(2, "d", 100)  # gets trimmed
         wallet.purchase(2, "e", 90)  # gets trimmed
 
-        assert wallet.top_customers(0, 3) == ["a", "b", "c"]
+        assert wallet.top_customers(0, 3) == ["a(100)", "b(100)", "c(100)"]
 
     def test_top_customers_balance_sort(self):
         wallet = WalletImpl()
@@ -94,7 +94,7 @@ class TestWalletPractice:
         # This assertion doesn't work ['c', 'b', 'a'] != ['c', 'b', 'a']
         # I am trying to remember the pytest assert rules since I haven't
         # been using pytest for the last year.
-        assert wallet.top_customers(0, 3) == ["c", "b", "a"]
+        assert wallet.top_customers(0, 3) == ["c(102)", "b(101)", "a(100)"]
 
     def test_top_customers_balance_sort_reverse(self):
         wallet = WalletImpl()
@@ -113,7 +113,7 @@ class TestWalletPractice:
         # This assertion doesn't work ['c', 'b', 'a'] != ['c', 'b', 'a']
         # I am trying to remember the pytest assert rules since I haven't
         # been using pytest for the last year.
-        assert wallet.top_customers(0, 3) == ["c", "b", "a"]
+        assert wallet.top_customers(0, 3) == ["c(102)", "b(101)", "a(100)"]
 
     def test_phase_2_balance_at_before_user_exists(self):
         wallet = WalletImpl()
@@ -156,7 +156,6 @@ class TestWalletPractice:
             "2: TRANSFER_IN 125 from user1 balance=125",
         ]
 
-    @pytest.mark.skip(reason="Phase 2 placeholder: enforce purchase activity ranking")
     def test_phase_2_top_customers_counts_purchases_not_credits_or_transfers(self):
         wallet = WalletImpl()
         wallet.credit(1, "alice", 1000)
