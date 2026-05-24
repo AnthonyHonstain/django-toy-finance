@@ -48,6 +48,11 @@ an interface, stub implementation, placeholder tests, and a README. The intent
 is to convert the placeholder tests into real tests and implement the behavior
 incrementally.
 
+`wallet_practice_2026_05_23_01` is a fresh follow-up run after completing the
+2026-05-10 phase 2 work. It keeps the phase 2 contract but resets the
+implementation and provides skipped scenario tests for trying different
+abstractions.
+
 ## Suggested Workflow
 
 For each practice run:
