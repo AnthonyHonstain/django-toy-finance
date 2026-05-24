@@ -20,6 +20,11 @@
   * RESULT - Got hung up on map built in, but otherwise it was okay. I don't seem to get 
     to use map very often. 
 
+References:
+* https://docs.python.org/3/whatsnew/3.8.html
+* https://docs.python.org/3/tutorial/controlflow.html
+* https://docs.python.org/3/library/functions.html#map
+
 AGENT review
 * Checks passed for the current implementation:
   * `poetry run pytest finance/tests/wallet_practice_2026_05_23_01/test_wallet_impl.py -q`
