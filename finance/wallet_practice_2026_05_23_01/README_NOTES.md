@@ -60,14 +60,15 @@ AGENT review 2026-05-25
 * Checks:
   * `poetry run pytest finance/tests/wallet_practice_2026_05_23_01/test_wallet_impl.py -q` passes with 18 tests.
   * `poetry run black --check finance/wallet_practice_2026_05_23_01 finance/tests/wallet_practice_2026_05_23_01` passes.
-  * `poetry run mypy finance/wallet_practice_2026_05_23_01 finance/tests/wallet_practice_2026_05_23_01` fails because
-    `WalletImpl.credit`, `purchase`, and `transfer` now return `WalletTxnResponse`, while `WalletInterface` still declares
-    the old `int` / `int | None` return types.
+  * `poetry run mypy finance/wallet_practice_2026_05_23_01 finance/tests/wallet_practice_2026_05_23_01` originally failed
+    because `WalletImpl.credit`, `purchase`, and `transfer` returned `WalletTxnResponse`, while `WalletInterface` still
+    declared the old `int` / `int | None` return types. That mismatch was fixed by moving `WalletTxnResponse` into the
+    interface contract.
 * The two Phase 2 bugs from yesterday were addressed well. Transfer now checks source balance before mutating, and
   historical balance now distinguishes "user exists now" from "user existed at that timestamp."
 * The `WalletTxnResponse` direction makes sense for Phase 3 because callers need transaction IDs to test reversal.
-  The next cleanup is to make that contract explicit in `wallet_interface.py` and its docstrings, or choose a separate
-  method for transaction-bearing operations if you want to preserve the earlier API shape.
+  The contract is now explicit in `wallet_interface.py`; the remaining design choice is whether this practice run keeps
+  the Phase 3 response shape permanently or introduces compatibility wrappers later.
 * The ledger lookup dictionary is the right kind of pressure-driven abstraction. It avoids scanning the whole global
   ledger for reversal and makes unknown transaction handling straightforward.
 * The append-only reversal model is a good accounting instinct. Mutating the original ledger only to record
@@ -78,6 +79,6 @@ AGENT review 2026-05-25
 * Test precision note: `test_reverse_purchase_single` uses `ANY` for the original credit row's `reverse_txn_id`, which
   would also accept an accidental mutation of the credit ledger. If the purchase reversal should only mark the purchase,
   assert `reverse_txn_id=None` on the credit row.
-* Overall: this was a useful Phase 3 start. The core data model is bending in the right direction, but the public
-  interface should be reconciled before adding more reversal behavior so tests, types, and API docs all describe the
-  same contract.
+* Overall: this was a useful Phase 3 start. The core data model is bending in the right direction, and the public
+  interface now matches the transaction-response shape. The next work should stay focused on transfer reversal,
+  `transaction()`, and the purchase-reversal effect on `top_customers()`.

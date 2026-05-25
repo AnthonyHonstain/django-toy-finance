@@ -2,7 +2,10 @@ from dataclasses import dataclass
 from enum import Enum
 from uuid import UUID, uuid4
 
-from finance.wallet_practice_2026_05_23_01.wallet_interface import WalletInterface
+from finance.wallet_practice_2026_05_23_01.wallet_interface import (
+    WalletInterface,
+    WalletTxnResponse,
+)
 
 
 class TransactionType(str, Enum):
@@ -24,13 +27,6 @@ class Ledger:
     transfer_from: str | None = None
     transfer_id: UUID | None = None
     reverse_txn_id: UUID | None = None
-
-
-@dataclass
-class WalletTxnResponse:
-    successful: bool
-    id: UUID | None = None
-    balance: int | None = None
 
 
 class Wallet:

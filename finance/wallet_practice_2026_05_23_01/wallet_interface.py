@@ -1,5 +1,13 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from uuid import UUID
+
+
+@dataclass
+class WalletTxnResponse:
+    successful: bool
+    id: UUID | None = None
+    balance: int | None = None
 
 
 class WalletInterface(ABC):
@@ -12,36 +20,41 @@ class WalletInterface(ABC):
     Reference scenarios:
 
     * A new user starts with no account history.
-    * `credit(1, "alice", 500)` returns 500.
-    * After that, `purchase(2, "alice", 200)` returns 300.
-    * `purchase(3, "alice", 400)` returns None and leaves Alice at 300.
-    * `transfer(4, "alice", "bob", 100)` returns Alice's balance, 200.
+    * `credit(1, "alice", 500)` returns a successful response with balance 500.
+    * After that, `purchase(2, "alice", 200)` returns a successful response
+      with balance 300.
+    * `purchase(3, "alice", 400)` returns an unsuccessful response and leaves
+      Alice at 300.
+    * `transfer(4, "alice", "bob", 100)` returns a successful response with
+      Alice's balance, 200.
     * After the transfer, `balance(5, "bob")` returns 100.
     * Top customers are ranked by total successful purchase amount, descending.
     * Ties in top customers are broken lexicographically by user ID.
     """
 
     @abstractmethod
-    def credit(self, timestamp: int, user: str, amount: int) -> int:
-        """Add `amount` to `user` and return the user's current balance."""
+    def credit(self, timestamp: int, user: str, amount: int) -> WalletTxnResponse:
+        """Add `amount` to `user` and return transaction metadata."""
 
     @abstractmethod
-    def purchase(self, timestamp: int, user: str, amount: int) -> int | None:
+    def purchase(self, timestamp: int, user: str, amount: int) -> WalletTxnResponse:
         """Spend `amount` if the user has enough money.
 
-        Return the remaining balance on success. Return None when funds are
-        insufficient, and do not change the balance.
+        Return a successful response with the transaction ID and remaining
+        balance. Return an unsuccessful response when funds are insufficient,
+        and do not change the balance.
         """
 
     @abstractmethod
     def transfer(
         self, timestamp: int, source: str, destination: str, amount: int
-    ) -> int | None:
+    ) -> WalletTxnResponse:
         """Move money from `source` to `destination`.
 
-        Return the source user's remaining balance on success. Return None when
-        the source user does not exist or lacks funds. Creating the destination
-        user during a successful transfer is acceptable for this practice run.
+        Return a successful response with the source user's remaining balance.
+        Return an unsuccessful response when the source user does not exist or
+        lacks funds. Creating the destination user during a successful transfer
+        is acceptable for this practice run.
         """
 
     @abstractmethod
