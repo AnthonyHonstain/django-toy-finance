@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from uuid import UUID
 
 
 class WalletInterface(ABC):
@@ -78,4 +79,30 @@ class WalletInterface(ABC):
 
         Only successful purchases count. Credits and transfers do not count.
         Format each result as `"user(amount)"`.
+        """
+
+    @abstractmethod
+    def transaction(self, timestamp: int, transaction_id: UUID) -> str | None:
+        """Return a formatted description for one transaction.
+
+        Return None if `transaction_id` is unknown.
+
+        Phase 3 modeling pressure: decide whether a transaction ID identifies
+        one ledger row or one business transaction. A transfer has two ledger
+        rows, but it may be more useful as one conceptual transaction.
+        """
+
+    @abstractmethod
+    def reverse(self, timestamp: int, transaction_id: UUID) -> bool:
+        """Reverse a prior transaction if it is safe to do so.
+
+        Return True when a reversal is recorded. Return False when the
+        transaction is unknown, already reversed, or cannot be safely reversed.
+
+        Suggested Phase 3 scenarios:
+        * Reversing a purchase restores the user's balance.
+        * Reversing a transfer moves money back from destination to source.
+        * Reversing a transfer fails if the destination no longer has enough
+          balance to return the funds.
+        * Reversing the same transaction twice fails cleanly.
         """

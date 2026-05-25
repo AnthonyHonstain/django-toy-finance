@@ -1,6 +1,14 @@
+from unittest.mock import ANY
+from uuid import uuid4
+
 import pytest
 
-from finance.wallet_practice_2026_05_23_01.wallet_impl import WalletImpl
+from finance.wallet_practice_2026_05_23_01.wallet_impl import (
+    WalletImpl,
+    WalletTxnResponse,
+    Ledger,
+    TransactionType,
+)
 
 USER_1 = "user1"
 USER_2 = "user2"
@@ -9,17 +17,17 @@ USER_2 = "user2"
 class TestWalletPractice:
     def test_credit(self):
         wallet = WalletImpl()
-        assert wallet.credit(1, USER_1, 100) == 100
+        assert wallet.credit(1, USER_1, 100) == WalletTxnResponse(True, ANY, 100)
 
     def test_credit_repeated(self):
         wallet = WalletImpl()
-        assert wallet.credit(1, USER_1, 100) == 100
-        assert wallet.credit(2, USER_1, 200) == 300
+        assert wallet.credit(1, USER_1, 100) == WalletTxnResponse(True, ANY, 100)
+        assert wallet.credit(2, USER_1, 200) == WalletTxnResponse(True, ANY, 300)
 
     def test_credit_and_balance(self):
         wallet = WalletImpl()
 
-        assert wallet.credit(1, USER_1, 100) == 100
+        assert wallet.credit(1, USER_1, 100) == WalletTxnResponse(True, ANY, 100)
         assert wallet.balance(2, USER_1) == 100
         assert wallet.balance(3, "missing") is None
 
@@ -27,15 +35,25 @@ class TestWalletPractice:
         wallet = WalletImpl()
         wallet.credit(1, USER_1, 100)
 
-        assert wallet.purchase(2, USER_1, 75) == 25
-        assert wallet.purchase(3, USER_1, 26) is None
+        assert wallet.purchase(2, USER_1, 75) == WalletTxnResponse(True, ANY, 25)
+        assert wallet.purchase(3, USER_1, 26) == WalletTxnResponse(False, None, None)
         assert wallet.balance(4, USER_1) == 25
+
+    def test_transfer_insufficient_source_funds(self):
+        wallet = WalletImpl()
+        wallet.credit(1, USER_1, 100)
+
+        assert wallet.transfer(2, USER_1, USER_2, 101) == WalletTxnResponse(
+            False, None, None
+        )
 
     def test_transfer_between_users(self):
         wallet = WalletImpl()
         wallet.credit(1, USER_1, 100)
 
-        assert wallet.transfer(2, USER_1, USER_2, 51) == 49
+        assert wallet.transfer(2, USER_1, USER_2, 51) == WalletTxnResponse(
+            True, ANY, 49
+        )
         assert wallet.balance(3, USER_1) == 49
         assert wallet.balance(4, USER_2) == 51
 
@@ -50,6 +68,9 @@ class TestWalletPractice:
         assert wallet.balance_at(10, USER_1, 4) == 300
         assert wallet.balance_at(10, USER_1, 5) == 200
         assert wallet.balance_at(10, "missing", 5) is None
+
+        # Also check that USER_2 is None if balance before they got their first transfer
+        assert wallet.balance_at(10, USER_2, 4) is None
 
     def test_statement_filters_to_one_user_and_time_range(self):
         wallet = WalletImpl()
@@ -107,3 +128,120 @@ class TestWalletPractice:
         wallet.purchase(6, "b", 100)
 
         assert wallet.top_customers(10, 2) == ["a(100)", "b(100)"]
+
+    def test_reverse_unknown(self):
+        wallet = WalletImpl()
+        assert wallet.reverse(1, uuid4()) is False
+        credit_response = wallet.credit(1, USER_1, 1000)
+        assert credit_response.id is not None
+        assert wallet.reverse(2, uuid4()) is False
+
+    def test_reverse_credit_single(self):
+        wallet = WalletImpl()
+        credit_response = wallet.credit(1, USER_1, 1000)
+        assert credit_response.id is not None
+        assert wallet.global_ledger == [
+            Ledger(
+                credit_response.id,
+                1,
+                USER_1,
+                TransactionType.CREDIT,
+                1000,
+                reverse_txn_id=None,
+            )
+        ]
+
+        assert wallet.reverse(2, credit_response.id)
+        assert wallet.global_ledger == [
+            Ledger(
+                credit_response.id,
+                1,
+                USER_1,
+                TransactionType.CREDIT,
+                1000,
+                reverse_txn_id=ANY,
+            ),
+            Ledger(
+                ANY,
+                2,
+                USER_1,
+                TransactionType.REVERSE,
+                -1000,
+                reverse_txn_id=credit_response.id,
+            ),
+        ]
+
+    def test_reverse_purchase_single(self):
+        wallet = WalletImpl()
+        credit_response = wallet.credit(1, USER_1, 1000)
+        purchase_response = wallet.purchase(2, USER_1, 75)
+        assert credit_response.id is not None
+        assert purchase_response.id is not None
+        assert wallet.global_ledger == [
+            Ledger(
+                credit_response.id,
+                1,
+                USER_1,
+                TransactionType.CREDIT,
+                1000,
+                reverse_txn_id=None,
+            ),
+            Ledger(
+                purchase_response.id,
+                2,
+                USER_1,
+                TransactionType.PURCHASE,
+                -75,
+                reverse_txn_id=None,
+            ),
+        ]
+
+        assert wallet.reverse(3, purchase_response.id)
+        assert wallet.global_ledger == [
+            Ledger(
+                credit_response.id,
+                1,
+                USER_1,
+                TransactionType.CREDIT,
+                1000,
+                reverse_txn_id=ANY,
+            ),
+            Ledger(
+                purchase_response.id,
+                2,
+                USER_1,
+                TransactionType.PURCHASE,
+                -75,
+                reverse_txn_id=ANY,
+            ),
+            Ledger(
+                ANY,
+                3,
+                USER_1,
+                TransactionType.REVERSE,
+                75,
+                reverse_txn_id=purchase_response.id,
+            ),
+        ]
+
+    def test_reverse_credit_insufficient(self):
+        wallet = WalletImpl()
+        credit_response = wallet.credit(1, USER_1, 1000)
+        wallet.purchase(2, USER_1, 900)
+        assert credit_response.id is not None
+        assert wallet.reverse(3, credit_response.id) is False
+
+    def test_reverse_credit_multiple_ledgers(self):
+        wallet = WalletImpl()
+        credit_response_1 = wallet.credit(1, USER_1, 500)
+        credit_response_2 = wallet.credit(2, USER_1, 1000)
+        assert credit_response_2.id is not None
+        assert wallet.reverse(3, credit_response_2.id)
+
+    def test_reverse_idempotent(self):
+        wallet = WalletImpl()
+        credit_response = wallet.credit(1, USER_1, 1000)
+        assert credit_response.id is not None
+        assert wallet.reverse(2, credit_response.id)
+        # Repeated call should not do another reversal
+        assert wallet.reverse(2, credit_response.id) is False

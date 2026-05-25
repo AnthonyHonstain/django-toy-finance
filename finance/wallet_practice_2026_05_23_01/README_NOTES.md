@@ -46,3 +46,38 @@ AGENT review
   emitting rows inside the requested range.
 * Once the failed transfer and pre-existence historical balance cases are fixed,
   this version is in solid shape for the current contract.
+
+2026-05-25
+* 0902-0915 Fixing bugs from yesterday
+  * transfer was allowed with insufficient funds.
+  * balance at returning None 
+* 0921-1004 Working on phase 3
+  * I had fun thinking through the different options I had for implementing
+  * Added a dictionary for uuid lookup of ledgers
+  * Decided on a light optional FK to relate ledgers to one another for reversal.
+
+AGENT review 2026-05-25
+* Checks:
+  * `poetry run pytest finance/tests/wallet_practice_2026_05_23_01/test_wallet_impl.py -q` passes with 18 tests.
+  * `poetry run black --check finance/wallet_practice_2026_05_23_01 finance/tests/wallet_practice_2026_05_23_01` passes.
+  * `poetry run mypy finance/wallet_practice_2026_05_23_01 finance/tests/wallet_practice_2026_05_23_01` fails because
+    `WalletImpl.credit`, `purchase`, and `transfer` now return `WalletTxnResponse`, while `WalletInterface` still declares
+    the old `int` / `int | None` return types.
+* The two Phase 2 bugs from yesterday were addressed well. Transfer now checks source balance before mutating, and
+  historical balance now distinguishes "user exists now" from "user existed at that timestamp."
+* The `WalletTxnResponse` direction makes sense for Phase 3 because callers need transaction IDs to test reversal.
+  The next cleanup is to make that contract explicit in `wallet_interface.py` and its docstrings, or choose a separate
+  method for transaction-bearing operations if you want to preserve the earlier API shape.
+* The ledger lookup dictionary is the right kind of pressure-driven abstraction. It avoids scanning the whole global
+  ledger for reversal and makes unknown transaction handling straightforward.
+* The append-only reversal model is a good accounting instinct. Mutating the original ledger only to record
+  `reverse_txn_id` is reasonable metadata, while the financial effect is represented by a new reverse ledger.
+* Current Phase 3 coverage handles unknown reversal, credit reversal, purchase reversal, insufficient credit reversal,
+  and idempotency. Still open: `transaction()` is unimplemented, transfer reversal is unimplemented, and the intended
+  effect of reversing a purchase on `top_customers()` needs an explicit contract decision.
+* Test precision note: `test_reverse_purchase_single` uses `ANY` for the original credit row's `reverse_txn_id`, which
+  would also accept an accidental mutation of the credit ledger. If the purchase reversal should only mark the purchase,
+  assert `reverse_txn_id=None` on the credit row.
+* Overall: this was a useful Phase 3 start. The core data model is bending in the right direction, but the public
+  interface should be reconciled before adding more reversal behavior so tests, types, and API docs all describe the
+  same contract.

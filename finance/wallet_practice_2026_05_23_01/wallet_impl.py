@@ -10,6 +10,7 @@ class TransactionType(str, Enum):
     PURCHASE = "PURCHASE"
     TRANSFER_OUT = "TRANSFER_OUT"
     TRANSFER_IN = "TRANSFER_IN"
+    REVERSE = "REVERSE"
 
 
 @dataclass
@@ -21,6 +22,15 @@ class Ledger:
     amount: int
     transfer_to: str | None = None
     transfer_from: str | None = None
+    transfer_id: UUID | None = None
+    reverse_txn_id: UUID | None = None
+
+
+@dataclass
+class WalletTxnResponse:
+    successful: bool
+    id: UUID | None = None
+    balance: int | None = None
 
 
 class Wallet:
@@ -39,17 +49,24 @@ class Wallet:
         if ledger.type == TransactionType.PURCHASE:
             self.purchase_sum += abs(ledger.amount)
 
-    def get_balance(self, at_timestamp: int | None = None) -> int:
-        # On the fence about using a getter, vs just grabbinb the balance.
+    def get_balance(self) -> int:
+        return self.balance
+
+    def get_balance_at(self, at_timestamp: int | None = None) -> int | None:
         if at_timestamp is None:
             return self.balance
 
+        ledger_found = False
         balance = 0
         for ledger in self.ledgers:
             if ledger.timestamp > at_timestamp:
                 break
+            ledger_found = True
             balance += ledger.amount
-        return balance
+
+        if ledger_found:
+            return balance
+        return None
 
     def statement(self, start_timestamp: int, end_timestamp: int) -> list[str]:
         result = []
@@ -85,63 +102,77 @@ class WalletImpl(WalletInterface):
     def __init__(self) -> None:
         self.global_ledger: list[Ledger] = []
         self.wallets: dict[str, Wallet] = {}
+        self.global_ledger_lookup: dict[UUID, Ledger] = {}
 
-    def credit(self, timestamp: int, user: str, amount: int) -> int:
+    def credit(self, timestamp: int, user: str, amount: int) -> WalletTxnResponse:
         if user not in self.wallets:
             self.wallets[user] = Wallet(user)
 
         wallet: Wallet = self.wallets[user]
-        ledger = Ledger(uuid4(), timestamp, user, TransactionType.CREDIT, amount)
+        id = uuid4()
+        ledger = Ledger(id, timestamp, user, TransactionType.CREDIT, amount)
         wallet.add_ledger(ledger)
         self.global_ledger.append(ledger)
-        return wallet.get_balance()
+        self.global_ledger_lookup[ledger.id] = ledger
+        return WalletTxnResponse(True, id, wallet.get_balance())
 
-    def purchase(self, timestamp: int, user: str, amount: int) -> int | None:
+    def purchase(self, timestamp: int, user: str, amount: int) -> WalletTxnResponse:
         if user not in self.wallets:
-            return None
+            return WalletTxnResponse(False)
 
         wallet: Wallet = self.wallets[user]
         if wallet.get_balance() < amount:
-            return None
+            return WalletTxnResponse(False)
 
-        ledger = Ledger(uuid4(), timestamp, user, TransactionType.PURCHASE, -amount)
+        id = uuid4()
+        ledger = Ledger(id, timestamp, user, TransactionType.PURCHASE, -amount)
         wallet.add_ledger(ledger)
         self.global_ledger.append(ledger)
-        return wallet.get_balance()
+        self.global_ledger_lookup[ledger.id] = ledger
+        return WalletTxnResponse(True, id, wallet.get_balance())
 
     def transfer(
         self, timestamp: int, source: str, destination: str, amount: int
-    ) -> int | None:
+    ) -> WalletTxnResponse:
         if source not in self.wallets:
-            return None
+            return WalletTxnResponse(False)
         if destination not in self.wallets:
             self.wallets[destination] = Wallet(destination)
 
         source_wallet = self.wallets[source]
         destination_wallet = self.wallets[destination]
 
+        if source_wallet.get_balance() < amount:
+            return WalletTxnResponse(False)
+
+        txf_out_id = uuid4()
+        txf_in_id = uuid4()
         ledger_out = Ledger(
-            uuid4(),
+            txf_out_id,
             timestamp,
             source,
             TransactionType.TRANSFER_OUT,
             -amount,
             transfer_to=destination,
+            transfer_id=txf_in_id,
         )
         ledger_in = Ledger(
-            uuid4(),
+            txf_in_id,
             timestamp,
             destination,
             TransactionType.TRANSFER_IN,
             amount,
             transfer_from=source,
+            transfer_id=txf_out_id,
         )
         source_wallet.add_ledger(ledger_out)
         destination_wallet.add_ledger(ledger_in)
 
         self.global_ledger.append(ledger_out)
+        self.global_ledger_lookup[ledger_out.id] = ledger_out
         self.global_ledger.append(ledger_in)
-        return source_wallet.get_balance()
+        self.global_ledger_lookup[ledger_in.id] = ledger_in
+        return WalletTxnResponse(True, txf_out_id, source_wallet.get_balance())
 
     def balance(self, timestamp: int, user: str) -> int | None:
         # treating timestamp as just a record for logging, and that
@@ -156,7 +187,7 @@ class WalletImpl(WalletInterface):
             return None
 
         wallet: Wallet = self.wallets[user]
-        return wallet.get_balance(at_timestamp)
+        return wallet.get_balance_at(at_timestamp)
 
     def statement(
         self, timestamp: int, user: str, start_timestamp: int, end_timestamp: int
@@ -179,3 +210,46 @@ class WalletImpl(WalletInterface):
 
         sorted_purchase_sum = sorted(temp_purchase_sum, key=lambda x: (-x[1], x[0]))
         return list(map(lambda x: f"{x[0]}({x[1]})", sorted_purchase_sum[:k]))
+
+    def transaction(self, timestamp: int, transaction_id: UUID) -> str | None:
+        raise NotImplementedError
+
+    def reverse(self, timestamp: int, transaction_id: UUID) -> bool:
+        # Planning - I want to :
+        #  * keep the append only nature of the ledger, I am going to try reverse with a reverse transaction
+        ledger = self.global_ledger_lookup.get(transaction_id, None)
+        if ledger is None:
+            return False
+
+        wallet = self.wallets[ledger.user]
+
+        # Start with credit type - the transfer reversal might be sufficiently distinct to
+        # justify breaking it out to a function.
+        if ledger.type in (TransactionType.CREDIT, TransactionType.PURCHASE):
+            if ledger.reverse_txn_id:
+                # This has already been reversed.
+                return False
+
+            # We have to stop if the reversal would take us below negative
+            # Example - we can't reverse a credit if doing so would invalid purchases later.
+            balance = wallet.get_balance()
+            if balance - ledger.amount < 0:
+                return False
+
+            reverse_id = uuid4()
+            ledger.reverse_txn_id = reverse_id
+
+            reverse_ledger = Ledger(
+                reverse_id,
+                timestamp,
+                ledger.user,
+                TransactionType.REVERSE,
+                -ledger.amount,
+                reverse_txn_id=ledger.id,
+            )
+            wallet.add_ledger(reverse_ledger)
+            self.global_ledger.append(reverse_ledger)
+            self.global_ledger_lookup[reverse_ledger.id] = reverse_ledger
+            return True
+
+        return False
