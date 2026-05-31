@@ -53,6 +53,14 @@ incrementally.
 implementation and provides skipped scenario tests for trying different
 abstractions.
 
+## Subscription Ledger Practice Runs
+
+`subscription_ledger_2026_05_31_01` is a fresh exercise intended to exercise
+similar data-modeling muscles in a different domain. It keeps the ledger,
+transaction ID, statement, ranking, and reversal pressure from the wallet
+practice runs, and adds recurring subscription billing with idempotent billing
+runs.
+
 ## Suggested Workflow
 
 For each practice run:
