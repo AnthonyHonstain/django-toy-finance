@@ -68,7 +68,11 @@ class TestSubscriptionLedger:
         ledger = SubscriptionImpl()
         ledger.create_customer(1, CUSTOMER_1)
 
+        # Unknown customer
+        assert ledger.subscribe(3, CUSTOMER_2, "basic", 500) is False
+
         assert ledger.subscription_status(2, CUSTOMER_1) == "inactive"
+        assert ledger.subscription_status(2, CUSTOMER_2) == "inactive"
         assert ledger.subscribe(3, CUSTOMER_1, "basic", 500) is True
         assert ledger.subscription_status(4, CUSTOMER_1) == "active:basic"
         assert ledger.cancel(5, CUSTOMER_1) is True
@@ -80,9 +84,14 @@ class TestSubscriptionLedger:
         ledger.add_credit(2, CUSTOMER_1, 1000)
         ledger.subscribe(3, CUSTOMER_1, "basic", 500)
 
+        assert ledger.run_billing(2) == []
+        assert ledger.run_billing(3) == ["customer1: charged 500 for basic"]
+        assert ledger.run_billing(3) == []
+        assert ledger.balance(11, CUSTOMER_1) == 500
+
         assert ledger.run_billing(10) == ["customer1: charged 500 for basic"]
         assert ledger.run_billing(10) == []
-        assert ledger.balance(11, CUSTOMER_1) == 500
+        assert ledger.balance(11, CUSTOMER_1) == 0
 
     def test_statement_uses_opening_balance_before_range(self):
         ledger = SubscriptionImpl()
