@@ -38,7 +38,7 @@ class Subscription:
     created_timestamp: int
     canceled_timestamp: int | None = None
 
-    def is_active(self, timestamp) -> bool:
+    def is_active(self, timestamp: int) -> bool:
         active_as_of_timestamp = self.created_timestamp <= timestamp
         if self.canceled_timestamp:
             active_as_of_timestamp = (
