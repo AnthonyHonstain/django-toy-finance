@@ -1,5 +1,3 @@
-from unittest.mock import ANY
-
 import pytest
 
 from finance.subscription_ledger_2026_09_13_01.subscription_impl import (
@@ -12,29 +10,31 @@ from finance.subscription_ledger_2026_09_13_01.subscription_interface import (
 
 class TestSubscriptionLedger:
     # Phase 1: remove one skip at a time, starting here.
-    @pytest.mark.skip(
-        reason="Fresh practice run: enable Phase 1 scenarios one at a time"
-    )
     def test_create_plans_and_customers(self):
         ledger = SubscriptionLedger()
 
         assert ledger.create_plan(1, "basic", 500) is True
         assert ledger.create_plan(2, "basic", 999) is False
+        # also hit the unknown plan_id - this required me to lookup the syntax for enum membership check
+        assert ledger.create_plan(3, "unknown", 666) is False
+
         assert ledger.create_customer(3, "alice") is True
         assert ledger.create_customer(4, "alice") is False
 
-    @pytest.mark.skip(
-        reason="Fresh practice run: enable Phase 1 scenarios one at a time"
-    )
     def test_credit_and_balance(self):
         ledger = SubscriptionLedger()
         ledger.create_customer(1, "alice")
 
         assert ledger.add_credit(2, "missing", 500) == TransactionResult(False)
-        assert ledger.add_credit(3, "alice", 1_000) == TransactionResult(
-            True, ANY, 1_000
-        )
-        assert ledger.add_credit(4, "alice", 250) == TransactionResult(True, ANY, 1_250)
+        first_credit = ledger.add_credit(3, "alice", 1_000)
+        assert first_credit.successful is True
+        assert first_credit.transaction_id is not None
+        assert first_credit.balance == 1_000
+
+        second_credit = ledger.add_credit(4, "alice", 250)
+        assert second_credit.successful is True
+        assert second_credit.transaction_id is not None
+        assert second_credit.balance == 1_250
         assert ledger.balance(5, "alice") == 1_250
         assert ledger.balance(6, "missing") is None
 

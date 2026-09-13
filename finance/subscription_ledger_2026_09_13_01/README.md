@@ -1,8 +1,9 @@
 # Subscription Ledger 2026-09-13 01
 
 This is a fresh interview-practice problem. It revisits subscription billing
-without copying the May implementation: plans now live in a catalog, customers
-can change plans, and reporting ranks plan revenue rather than customer spend.
+without copying the May implementation: supported plans are a fixed enum backed
+by a catalog, customers can change plans, and reporting ranks plan revenue
+rather than customer spend.
 
 The goal is to practice translating a compact contract into code, selecting
 simple data structures, and handling state transitions and idempotency without

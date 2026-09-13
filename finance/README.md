@@ -61,8 +61,8 @@ transaction ID, statement, ranking, and reversal pressure from the wallet
 practice runs, and adds recurring subscription billing with idempotent billing
 runs.
 
-`subscription_ledger_2026_09_13_01` is a clean follow-up run with a plan
-catalog, one active plan per customer, plan changes, recurring billing,
+`subscription_ledger_2026_09_13_01` is a clean follow-up run with a fixed plan
+enum and catalog, one active plan per customer, plan changes, recurring billing,
 statements, and plan-revenue ranking. Its tests begin explicitly
 skipped so scenarios can be enabled one at a time.
 

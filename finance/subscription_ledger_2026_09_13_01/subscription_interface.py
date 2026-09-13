@@ -16,8 +16,9 @@ class SubscriptionLedgerInterface(ABC):
     Amounts are positive integer cents. Timestamps are integer event markers
     supplied by the caller. Calls normally arrive in timestamp order, except
     that a failed billing timestamp may be retried after later credit is added.
-    A customer may have at most one current subscription, and a plan change
-    affects future billing only.
+    Supported plan identifiers are the fixed values ``basic`` and ``pro``;
+    attempts to create other plan IDs fail. A customer may have at most one
+    current subscription, and a plan change affects future billing only.
 
     Billing rules:
 
@@ -32,7 +33,10 @@ class SubscriptionLedgerInterface(ABC):
 
     @abstractmethod
     def create_plan(self, timestamp: int, plan_id: str, price: int) -> bool:
-        """Create a plan, returning False if the plan ID already exists."""
+        """Create a supported plan.
+
+        Return False if the plan ID is unsupported or already exists.
+        """
 
     @abstractmethod
     def create_customer(self, timestamp: int, customer_id: str) -> bool:
