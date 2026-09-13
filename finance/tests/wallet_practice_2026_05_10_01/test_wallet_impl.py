@@ -42,7 +42,7 @@ class TestWalletPractice:
         wallet = WalletImpl()
         wallet.credit(1, USER_1, 100)
 
-        assert wallet.transfer(2, USER_1, USER_2, 51) is 49
+        assert wallet.transfer(2, USER_1, USER_2, 51) == 49
         assert wallet.balance(0, USER_1) == 49
         assert wallet.balance(0, USER_2) == 51
 
@@ -51,7 +51,7 @@ class TestWalletPractice:
         wallet.credit(1, USER_1, 100)
         wallet.credit(2, USER_1, 100)
 
-        assert wallet.transfer(3, USER_1, USER_2, 200) is 0
+        assert wallet.transfer(3, USER_1, USER_2, 200) == 0
         assert wallet.balance(0, USER_1) == 0
         assert wallet.balance(0, USER_2) == 200
 

@@ -61,6 +61,11 @@ transaction ID, statement, ranking, and reversal pressure from the wallet
 practice runs, and adds recurring subscription billing with idempotent billing
 runs.
 
+`subscription_ledger_2026_09_13_01` is a clean follow-up run with a plan
+catalog, one active plan per customer, plan changes, recurring billing,
+statements, and plan-revenue ranking. Its tests begin explicitly
+skipped so scenarios can be enabled one at a time.
+
 ## Suggested Workflow
 
 For each practice run:
@@ -68,9 +73,9 @@ For each practice run:
 1. Read the interface and scenarios.
 2. Write or strengthen one test.
 3. Implement the smallest useful behavior.
-4. Run `poetry run pytest -q`.
-5. Run `poetry run mypy .`.
-6. Run `poetry run black .`.
+4. Run `python -m pytest -q` from the active project environment.
+5. Run `python -m mypy .`.
+6. Run `python -m black .`.
 7. Leave short notes about what went smoothly and what caused friction.
 
 The notes matter. They make it easier to see which parts of the interview loop
